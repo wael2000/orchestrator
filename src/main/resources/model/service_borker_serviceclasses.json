@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "name": "09da9db9f48819eb661924f9ffb6e6e4",
+    "selfLink": "/apis/servicecatalog.k8s.io/v1beta1/clusterserviceclasses/09da9db9f48819eb661924f9ffb6e6e4",
+    "uid": "2bea8c14-36e2-11e9-b97a-0a580a010007",
+    "resourceVersion": "1153053",
+    "creationTimestamp": "2019-02-22T20:41:03Z",
+    "ownerReferences": [
+      {
+        "apiVersion": "servicecatalog.k8s.io/v1beta1",
+        "kind": "ClusterServiceBroker",
+        "name": "aws-service-broker",
+        "uid": "f7794b4b-32d8-11e9-b97a-0a580a010007",
+        "controller": true,
+        "blockOwnerDeletion": false
+      }
+    ]
+  },
+  "spec": {
+    "externalName": "dh-dynamodb",
+    "externalID": "09da9db9f48819eb661924f9ffb6e6e4",
+    "description": "AWS Service Broker - Amazon DynamoDB",
+    "bindable": true,
+    "bindingRetrievable": false,
+    "planUpdatable": false,
+    "externalMetadata": {"displayName":"Amazon DynamoDB","documentationUrl":"https://aws.amazon.com/documentation/dynamodb/","imageUrl":"https://s3.amazonaws.com/thp-aws-icons-dev/Database_AmazonDynamoDB_LARGE.png","longDescription":"Amazon DynamoDB is a fully managed NoSQL database service that provides fast and predictable performance with seamless scalability. You can use Amazon DynamoDB to create a database table that can store and retrieve any amount of data, and serve any level of request traffic. Amazon DynamoDB automatically spreads the data and traffic for the table over a sufficient number of servers to handle the request capacity specified by the customer and the amount of data stored, while maintaining consistent and fast performance.","providerDisplayName":"Amazon Web Services"},
+    "tags": [
+      "AWS"
+    ],
+    "clusterServiceBrokerName": "aws-service-broker"
+  },
+  "status": {
+    "removedFromBrokerCatalog": false
+  }
+}

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:camel="http://camel.apache.org/schema/spring"
+    xmlns:cxf="http://camel.apache.org/schema/cxf"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="      http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring       http://camel.apache.org/schema/spring/camel-spring.xsd http://camel.apache.org/schema/cxf      http://camel.apache.org/schema/cxf/camel-cxf.xsd">
+    <bean class="com.amazonaws.services.ec2.AmazonEC2Client"
+        id="amazonEC2Client" scope="singleton"/>
+    <bean class="org.orchestrator.LocalServiceRepo"
+        id="localServiceRepo" scope="singleton"/>
+    <cxf:cxfEndpoint
+        address="http://http://127.0.0.1.xip.io:8090/service/accountService"
+        id="hybrisPCMService" loggingFeatureEnabled="true" serviceClass="sample.ws.service.Hello"/>
+    <camel:sslContextParameters id="mySslContext">
+        <camel:trustManagers>
+            <camel:keyStore password="123456" resource="classpath:server-keystore.jks"/>
+        </camel:trustManagers>
+        <camel:keyManagers keyPassword="123456">
+            <camel:keyStore password="123456" resource="classpath:server-keystore.jks"/>
+        </camel:keyManagers>
+        <!-- <camel:serverParameters clientAuthentication="WANT"/>  -->
+    </camel:sslContextParameters>
+    <bean class="org.apache.camel.component.http4.HttpComponent" id="http-ssl">
+        <property name="sslContextParameters" ref="mySslContext"/>
+    </bean>
+    <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+        <endpoint id="broker_to_cloud" uri="dozer:broker_to_cloud?sourceModel=service_borker_serviceclasses.Serviceborkerserviceclasses&amp;targetModel=cloud_serviceclasses.Cloudserviceclasses&amp;marshalId=transform-json&amp;unmarshalId=service_borker_serviceclassesServiceborkerserviceclasses&amp;mappingFile=broker_to_cloud_trans.xml"/>
+        <endpoint id="hybrisPCMEndpoint" uri="cxf:hybrisPCMService:?defaultOperationName=createProduct"/>
+        <!-- <restConfiguration bindingMode="json_xml" component="servlet"
+            contextPath="apis" host="localhost" port="8080"/>  -->
+        <dataFormats>
+            <json
+                id="service_borker_serviceclassesServiceborkerserviceclasses"
+                library="Jackson" unmarshalTypeName="service_borker_serviceclasses.Serviceborkerserviceclasses"/>
+            <json id="transform-json" library="Jackson"/>
+        </dataFormats>
+        <restConfiguration bindingMode="json_xml" component="servlet"
+            contextPath="apis" port="8080">
+            <dataFormatProperty key="xml.out.mustBeJAXBElement" value="false"/>
+            <dataFormatProperty key="prettyPrint" value="true"/>
+            <apiProperty key="cors" value="true"/>
+            <apiProperty key="api.title" value="Orchestrator Camel REST API"/>
+            <apiProperty key="api.version" value="1.0.0"/>
+        </restConfiguration>
+        <rest id="auth" path="/broker">
+            <get bindingMode="json"
+                id="079d0ad3-4992-4c57-b356-bc74f45f6594"
+                produces="application/json" type="java.lang.String" uri="/services">
+                <to uri="direct:_services"/>
+            </get>
+            <get id="provision_ec2" uri="/provision">
+                <to uri="direct:_provision"/>
+            </get>
+        </rest>
+        <route id="provision_ec2_route">
+            <from id="_provision" uri="direct:_provision"/>
+            <setHeader headerName="CamelAwsEC2InstanceType" id="_INSTANCE_TYPE">
+                <constant trim="false">T2Micro</constant>
+            </setHeader>
+            <setHeader headerName="CamelAwsEC2ImageId" id="_IMAGE_ID">
+                <constant trim="false">ami-0b500ef59d8335eee</constant>
+            </setHeader>
+            <setHeader headerName="CamelAwsEC2InstanceMinCount" id="_INSTANCE_MIN_COUNT">
+                <constant trim="false">1</constant>
+            </setHeader>
+            <setHeader headerName="CamelAwsEC2InstanceMaxCount" id="_INSTANCE_MAX_COUNT">
+                <constant trim="false">1</constant>
+            </setHeader>
+            <to id="_to" uri="aws-ec2://orchestrator?accessKey=AKIAILFZKGHUGVMZUEXA&amp;operation=createAndRunInstances&amp;region=US_EAST_2&amp;secretKey=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&amp;synchronous=true"/>
+            <setHeader headerName="content-type" id="_setHeader1">
+                <simple>application/json</simple>
+            </setHeader>
+            <setBody id="_aws_request">
+                <simple>${body[0]}</simple>
+            </setBody>
+        </route>
+        <route id="_service_broker_route">
+            <from id="_from1" uri="file:/Users/redhat/Documents/openshift/openshift-restclient-java/serviceclasses/in"/>
+            <filter id="_filter1">
+                <jsonpath>$.items[?(@.spec.clusterServiceBrokerName=='aws-service-broker')]</jsonpath>
+                <split id="_service_splitter">
+                    <jsonpath writeAsString="true">$.items</jsonpath>
+                    <to id="_to1" uri="ref:broker_to_cloud"/>
+                    <log id="logServices1" message="${body}"/>
+                    <log id="logServices2" message="---------------- ------------------ ------------------ "/>
+                </split>
+            </filter>
+        </route>
+    </camelContext>
+</beans>
