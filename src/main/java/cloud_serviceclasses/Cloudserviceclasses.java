@@ -1,8 +1,7 @@
 
 package cloud_serviceclasses;
 
-import java.util.ArrayList;
-import java.util.List;
+
 import javax.annotation.Generated;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -21,7 +20,6 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
     "imageUrl",
     "longDescription",
     "providerDisplayName",
-    "tags",
     "clusterServiceBrokerName"
 })
 public class Cloudserviceclasses {
@@ -46,8 +44,6 @@ public class Cloudserviceclasses {
     private String longDescription;
     @JsonProperty("providerDisplayName")
     private String providerDisplayName;
-    @JsonProperty("tags")
-    private List<String> tags = new ArrayList<String>();
     @JsonProperty("clusterServiceBrokerName")
     private String clusterServiceBrokerName;
 
@@ -249,26 +245,6 @@ public class Cloudserviceclasses {
     @JsonProperty("providerDisplayName")
     public void setProviderDisplayName(String providerDisplayName) {
         this.providerDisplayName = providerDisplayName;
-    }
-
-    /**
-     * 
-     * @return
-     *     The tags
-     */
-    @JsonProperty("tags")
-    public List<String> getTags() {
-        return tags;
-    }
-
-    /**
-     * 
-     * @param tags
-     *     The tags
-     */
-    @JsonProperty("tags")
-    public void setTags(List<String> tags) {
-        this.tags = tags;
     }
 
     /**

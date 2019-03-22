@@ -4,51 +4,51 @@
         <wildcard>false</wildcard>
     </configuration>
     <mapping>
-        <class-a>service_borker_serviceclasses.Serviceborkerserviceclasses</class-a>
-        <class-b>cloud_serviceclasses.Cloudserviceclasses</class-b>
-        <field>
-            <a>metadata.uid</a>
-            <b>uid</b>
+        <class-a>cloud_serviceclasses.Cloudserviceclasses</class-a>
+        <class-b>service_borker_serviceclasses.Serviceborkerserviceclasses</class-b>
+        <field>            
+            <a>uid</a>
+            <b>metadata.uid</b>
         </field>
         <field>
-            <a>spec.externalMetadata.longDescription</a>
-            <b>longDescription</b>
+        	<a>longDescription</a>
+            <b>spec.externalMetadata.longDescription</b>
         </field>
         <field>
-            <a>spec.externalMetadata.documentationUrl</a>
-            <b>documentationUrl</b>
+        	<a>documentationUrl</a>
+            <b>spec.externalMetadata.documentationUrl</b>            
         </field>
         <field>
-            <a>spec.externalMetadata.providerDisplayName</a>
-            <b>providerDisplayName</b>
+            <a>providerDisplayName</a>
+            <b>spec.externalMetadata.providerDisplayName</b>
         </field>
         <field>
-            <a>spec.externalMetadata.displayName</a>
-            <b>displayName</b>
+            <a>displayName</a>
+            <b>spec.externalMetadata.displayName</b>
         </field>
         <field>
-            <a>spec.externalName</a>
-            <b>externalName</b>
+            <a>externalName</a>
+            <b>spec.externalName</b>
         </field>
         <field>
-            <a>spec.externalMetadata.imageUrl</a>
-            <b>imageUrl</b>
+            <a>imageUrl</a>
+            <b>spec.externalMetadata.imageUrl</b>
         </field>
         <field>
-            <a>metadata.name</a>
-            <b>name</b>
+            <a>name</a>
+            <b>metadata.name</b>
         </field>
         <field>
-            <a>spec.description</a>
-            <b>description</b>
+            <a>description</a>
+            <b>spec.description</b>
         </field>
         <field>
-            <a>spec.clusterServiceBrokerName</a>
-            <b>clusterServiceBrokerName</b>
+            <a>clusterServiceBrokerName</a>
+            <b>spec.clusterServiceBrokerName</b>
         </field>
         <field>
-            <a>metadata.selfLink</a>
-            <b>selfLink</b>
+        	<a>selfLink</a>
+            <b>metadata.selfLink</b>
         </field>
     </mapping>
 </mappings>

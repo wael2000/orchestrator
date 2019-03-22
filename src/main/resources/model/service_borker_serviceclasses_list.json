@@ -1,0 +1,45 @@
+{
+  "kind": "ClusterServiceClassList",
+  "apiVersion": "servicecatalog.k8s.io/v1beta1",
+  "metadata": {
+    "selfLink": "/apis/servicecatalog.k8s.io/v1beta1/clusterserviceclasses",
+    "resourceVersion": "1349426"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "04a8b6d167ef670e4e1e9b1c16bf7590",
+        "selfLink": "/apis/servicecatalog.k8s.io/v1beta1/clusterserviceclasses/04a8b6d167ef670e4e1e9b1c16bf7590",
+        "uid": "3293acbf-32d9-11e9-b97a-0a580a010007",
+        "resourceVersion": "9825",
+        "creationTimestamp": "2019-02-17T17:26:44Z",
+        "ownerReferences": [
+          {
+            "apiVersion": "servicecatalog.k8s.io/v1beta1",
+            "kind": "ClusterServiceBroker",
+            "name": "aws-service-broker",
+            "uid": "f7794b4b-32d8-11e9-b97a-0a580a010007",
+            "controller": true,
+            "blockOwnerDeletion": false
+          }
+        ]
+      },
+      "spec": {
+        "externalName": "dh-emr",
+        "externalID": "04a8b6d167ef670e4e1e9b1c16bf7590",
+        "description": "AWS Service Broker - Amazon EMR",
+        "bindable": true,
+        "bindingRetrievable": false,
+        "planUpdatable": false,
+        "externalMetadata": {"displayName":"Amazon EMR","documentationUrl":"https://aws.amazon.com/documentation/emr/","imageUrl":"https://s3.amazonaws.com/thp-aws-icons-dev/Analytics_AmazonEMR_LARGE.png","longDescription":"Amazon EMR provides a managed Hadoop framework that makes it easy, fast, and cost-effective to process vast amounts of data across dynamically scalable Amazon EC2 instances. You can also run other popular distributed frameworks such as Apache Spark, HBase, Presto, and Flink in Amazon EMR, and interact with data in other AWS data stores such as Amazon S3 and Amazon DynamoDB.","providerDisplayName":"Amazon Web Services"},
+        "tags": [
+          "AWS"
+        ],
+        "clusterServiceBrokerName": "aws-service-broker"
+      },
+      "status": {
+        "removedFromBrokerCatalog": false
+      }
+    }
+  ]
+}

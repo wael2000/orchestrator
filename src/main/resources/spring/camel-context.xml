@@ -2,36 +2,52 @@
 <beans xmlns="http://www.springframework.org/schema/beans"
     xmlns:camel="http://camel.apache.org/schema/spring"
     xmlns:cxf="http://camel.apache.org/schema/cxf"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="      http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring       http://camel.apache.org/schema/spring/camel-spring.xsd http://camel.apache.org/schema/cxf      http://camel.apache.org/schema/cxf/camel-cxf.xsd">
+    xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="      http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring       http://camel.apache.org/schema/spring/camel-spring.xsd http://camel.apache.org/schema/cxf      http://camel.apache.org/schema/cxf/camel-cxf.xsd http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd">
     <bean class="com.amazonaws.services.ec2.AmazonEC2Client"
         id="amazonEC2Client" scope="singleton"/>
     <bean class="org.orchestrator.LocalServiceRepo"
         id="localServiceRepo" scope="singleton"/>
+    <bean class="org.apache.http.conn.ssl.NoopHostnameVerifier" id="allHostNameVerifier"/>
     <cxf:cxfEndpoint
         address="http://http://127.0.0.1.xip.io:8090/service/accountService"
         id="hybrisPCMService" loggingFeatureEnabled="true" serviceClass="sample.ws.service.Hello"/>
-    <camel:sslContextParameters id="mySslContext">
-        <camel:trustManagers>
-            <camel:keyStore password="123456" resource="classpath:server-keystore.jks"/>
-        </camel:trustManagers>
-        <camel:keyManagers keyPassword="123456">
-            <camel:keyStore password="123456" resource="classpath:server-keystore.jks"/>
-        </camel:keyManagers>
-        <!-- <camel:serverParameters clientAuthentication="WANT"/>  -->
-    </camel:sslContextParameters>
-    <bean class="org.apache.camel.component.http4.HttpComponent" id="http-ssl">
-        <property name="sslContextParameters" ref="mySslContext"/>
+    <bean
+        class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer" id="propertyPlaceholderConfigurer">
+        <property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE"/>
+        <property name="searchSystemEnvironment" value="true"/>
     </bean>
+    <bean class="org.apache.activemq.camel.component.ActiveMQComponent" id="activemq">
+        <property name="connectionFactory">
+            <bean class="org.apache.activemq.ActiveMQConnectionFactory">
+                <property name="brokerURL" value="tcp://broker-amq-tcp:61616"/>
+                <property name="userName" value="admin"/>
+                <property name="password" value="admin"/>
+            </bean>
+        </property>
+    </bean>
+    <jdbc:initialize-database data-source="brokerDS" enabled="true">
+        <jdbc:script location="classpath:db-schema.sql"/>
+    </jdbc:initialize-database>
+    <bean
+        class="org.springframework.jdbc.datasource.DriverManagerDataSource" id="brokerDS">
+        <property name="driverClassName" value="org.postgresql.Driver"/>
+        <property name="url" value="jdbc:postgresql://postgresql:5432/local-broker"/>
+        <property name="username" value="broker"/>
+        <property name="password" value="P@ssw0rd"/>
+    </bean>
+    <bean class="org.orchestrator.InsecureHttps4Component" id="insecureHttps4"/>
+    <bean class="org.orchestrator.MyAggregationStrategy" id="aggregationStrategy"/>
     <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+        <propertyPlaceholder id="placeholder" location="classpath:sql.properties"/>
         <endpoint id="broker_to_cloud" uri="dozer:broker_to_cloud?sourceModel=service_borker_serviceclasses.Serviceborkerserviceclasses&amp;targetModel=cloud_serviceclasses.Cloudserviceclasses&amp;marshalId=transform-json&amp;unmarshalId=service_borker_serviceclassesServiceborkerserviceclasses&amp;mappingFile=broker_to_cloud_trans.xml"/>
         <endpoint id="hybrisPCMEndpoint" uri="cxf:hybrisPCMService:?defaultOperationName=createProduct"/>
-        <!-- <restConfiguration bindingMode="json_xml" component="servlet"
-            contextPath="apis" host="localhost" port="8080"/>  -->
         <dataFormats>
-            <json
+            <json disableFeatures="FAIL_ON_UNKNOWN_PROPERTIES"
                 id="service_borker_serviceclassesServiceborkerserviceclasses"
                 library="Jackson" unmarshalTypeName="service_borker_serviceclasses.Serviceborkerserviceclasses"/>
-            <json id="transform-json" library="Jackson"/>
+            <json disableFeatures="FAIL_ON_EMPTY_BEANS"
+                id="transform-json" library="Jackson"/>
         </dataFormats>
         <restConfiguration bindingMode="json_xml" component="servlet"
             contextPath="apis" port="8080">
@@ -47,43 +63,222 @@
                 produces="application/json" type="java.lang.String" uri="/services">
                 <to uri="direct:_services"/>
             </get>
-            <get id="provision_ec2" uri="/provision">
+            <get id="provision" uri="/provision">
                 <to uri="direct:_provision"/>
             </get>
+            <get id="deprovision" uri="/deprovision">
+                <to uri="direct:_deprovision"/>
+            </get>
+            <post id="provision_ec2_post" uri="/provisionec2">
+                <to uri="direct:_provisionec2"/>
+            </post>
+            <get id="_get_order_status" uri="/status">
+                <to uri="direct:_order_status"/>
+            </get>
+            <get id="provision_sqs" uri="/sqs">
+                <to uri="direct:_provisionecsqs"/>
+            </get>
         </rest>
-        <route id="provision_ec2_route">
-            <from id="_provision" uri="direct:_provision"/>
-            <setHeader headerName="CamelAwsEC2InstanceType" id="_INSTANCE_TYPE">
-                <constant trim="false">T2Micro</constant>
-            </setHeader>
-            <setHeader headerName="CamelAwsEC2ImageId" id="_IMAGE_ID">
-                <constant trim="false">ami-0b500ef59d8335eee</constant>
-            </setHeader>
-            <setHeader headerName="CamelAwsEC2InstanceMinCount" id="_INSTANCE_MIN_COUNT">
-                <constant trim="false">1</constant>
-            </setHeader>
-            <setHeader headerName="CamelAwsEC2InstanceMaxCount" id="_INSTANCE_MAX_COUNT">
-                <constant trim="false">1</constant>
-            </setHeader>
-            <to id="_to" uri="aws-ec2://orchestrator?accessKey=AKIAILFZKGHUGVMZUEXA&amp;operation=createAndRunInstances&amp;region=US_EAST_2&amp;secretKey=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&amp;synchronous=true"/>
-            <setHeader headerName="content-type" id="_setHeader1">
-                <simple>application/json</simple>
-            </setHeader>
-            <setBody id="_aws_request">
+        <route id="deprovision_route">
+            <from id="_deprovision" uri="direct:_deprovision"/>
+            <to id="_deprovisiontoSQLSelect_os" uri="sql:{{sql.selectRequest}}?dataSource=brokerDS"/>
+            <log id="_deprovisionlogEC2Body22" message="${body}"/>
+            <setBody id="_deprovisionsetBody_os">
                 <simple>${body[0]}</simple>
             </setBody>
+            <log id="_deprovisionlogEC2Body23" message="${body}"/>
+            <setHeader headerName="service_id" id="_deprovisionsetServiceIdHeader">
+                <simple>${body.get("service_id")}</simple>
+            </setHeader>
+            <setHeader headerName="service_provider" id="_deprovisionsetServiceProviderHeader">
+                <simple>${body.get("service_provider")}</simple>
+            </setHeader>
+            <choice id="_deprovisionchoice1">
+                <when id="_deprovisionwhen1">
+                    <simple>${headers.service_provider} == 'local-broker'</simple>
+                    <log id="_deprovisionlogEC2Body1" message="Deprovision Request"/>
+                    <log id="_deprovisionlogEC2Body2" message="${body}"/>
+                    <setHeader headerName="REQUEST_BODY" id="_deprovisionsetHeader123">
+                        <simple>${body}</simple>
+                    </setHeader>
+                    <log id="_deprovisionlogEC2Body3" message="${headers}"/>
+                    <setHeader headerName="CamelAwsEC2InstancesIds" id="_deprovisionINSTANCE_TYPE">
+                        <simple>${header.service_id}</simple>
+                    </setHeader>
+                    <to id="_deprovisionto2" uri="aws-ec2://orchestrator?accessKey={{accessKey}}&amp;operation=terminateInstances&amp;region=US_EAST_2&amp;secretKey={{secretKey}}&amp;synchronous=true"/>
+                    <setBody id="_deprovisionaws_request_response">
+                        <simple>${body[0]}</simple>
+                    </setBody>
+                    <convertBodyTo id="_deprovisionconvertBodyTo2" type="java.lang.String"/>
+                    <setHeader headerName="order_status" id="_deprovisionsetHeaderSQS4">
+                        <constant>Deprovisioned</constant>
+                    </setHeader>
+                    <to id="_deprovisiontoSQLSelectSQS" uri="sql:{{sql.updateRequest}}?dataSource=brokerDS"/>
+                    <setHeader headerName="content-type" id="_deprovisionsetHeader1">
+                        <simple>application/json</simple>
+                    </setHeader>
+                </when>
+                <otherwise id="_deprovisionotherwise1">
+                    <setHeader headerName="CamelHttpMethod" id="_deprovisionsetHeaderSQS1">
+                        <constant>DELETE</constant>
+                    </setHeader>
+                    <setHeader headerName="content-type" id="_deprovisionsetHeaderSQS2">
+                        <simple>application/json</simple>
+                    </setHeader>
+                    <setHeader headerName="Authorization" id="_deprovisionsetHeaderSQS3">
+                        <simple>Bearer ${headers.token}</simple>
+                    </setHeader>
+                    <setBody id="_deprovisionsetBodySQS2">
+                        <constant>
+		                	{"kind":"DeleteOptions","apiVersion":"v1","propagationPolicy":null}
+		                </constant>
+                    </setBody>
+                    <to id="_deprovisionserviceInstanceEndpointSQS2" uri="insecureHttps4://master.dxbsdg-bfa6.openshiftworkshop.com/apis/servicecatalog.k8s.io/v1beta1/namespaces/demo/serviceinstances/${header.service_id}?bridgeEndpoint=true"/>
+                    <convertBodyTo id="_deprovisionconvertBodyToSQS" type="java.lang.String"/>
+                    <setHeader headerName="order_response" id="_deprovisionsetHeaderSQS3">
+                        <simple>${body}</simple>
+                    </setHeader>
+                    <setHeader headerName="order_status" id="_deprovisionsetHeaderSQS4">
+                        <constant>Deprovisioned</constant>
+                    </setHeader>
+                    <to id="_deprovisiontoSQLSelectSQS" uri="sql:{{sql.updateRequest}}?dataSource=brokerDS"/>
+                    <unmarshal id="_deprovisionunmarshalSQS" ref="transform-json"/>
+                    <setHeader headerName="content-type" id="_deprovisionsetHeaderSQS4">
+                        <simple>application/json</simple>
+                    </setHeader>
+                </otherwise>
+            </choice>
         </route>
-        <route id="_service_broker_route">
-            <from id="_from1" uri="file:/Users/redhat/Documents/openshift/openshift-restclient-java/serviceclasses/in"/>
-            <filter id="_filter1">
-                <jsonpath>$.items[?(@.spec.clusterServiceBrokerName=='aws-service-broker')]</jsonpath>
-                <split id="_service_splitter">
-                    <jsonpath writeAsString="true">$.items</jsonpath>
-                    <to id="_to1" uri="ref:broker_to_cloud"/>
-                    <log id="logServices1" message="${body}"/>
-                    <log id="logServices2" message="---------------- ------------------ ------------------ "/>
-                </split>
-            </filter>
+        <route id="provision_route">
+            <!--  passed from the request -->
+            <from id="_provision" uri="direct:_provision"/>
+            <choice id="_choice1">
+                <when id="_when1">
+                    <simple>${headers.service_type} == 'ec2'</simple>
+                    <log id="logEC2Body1" message="Recieved Request"/>
+                    <log id="logEC2Body2" message="${body}"/>
+                    <setHeader headerName="REQUEST_BODY" id="_setHeader123">
+                        <simple>${body}</simple>
+                    </setHeader>
+                    <log id="logEC2Body3" message="${headers}"/>
+                    <setHeader headerName="CamelAwsEC2InstanceType" id="_INSTANCE_TYPE">
+                        <constant trim="false">T2Micro</constant>
+                    </setHeader>
+                    <setHeader headerName="CamelAwsEC2ImageId" id="_IMAGE_ID">
+                        <constant trim="false">ami-0b500ef59d8335eee</constant>
+                    </setHeader>
+                    <setHeader headerName="CamelAwsEC2InstanceMinCount" id="_INSTANCE_MIN_COUNT">
+                        <constant trim="false">1</constant>
+                    </setHeader>
+                    <setHeader headerName="CamelAwsEC2InstanceMaxCount" id="_INSTANCE_MAX_COUNT">
+                        <constant trim="false">1</constant>
+                    </setHeader>
+                    <to id="_to2" uri="aws-ec2://orchestrator?accessKey={{accessKey}}&amp;operation=createAndRunInstances&amp;region=US_EAST_2&amp;secretKey={{secretKey}}&amp;synchronous=true"/>
+                    <setHeader headerName="AWS_RESPONSE" id="_setHeader21">
+                        <simple>${body[0]}</simple>
+                    </setHeader>
+                    <setBody id="_aws_request_response">
+                        <simple>${headers.AWS_RESPONSE}</simple>
+                    </setBody>
+                    <convertBodyTo id="_convertBodyTo2" type="java.lang.String"/>
+                    <setHeader headerName="order_response" id="_setHeader2">
+                        <simple>${body}</simple>
+                    </setHeader>
+                    <setHeader headerName="order_status" id="_setHeader3">
+                        <constant>Provisioned</constant>
+                    </setHeader>
+                    <setHeader headerName="service_provider" id="_setHeader4">
+                        <constant>local-broker</constant>
+                    </setHeader>
+                    <setHeader headerName="service_type" id="_setHeader5">
+                        <jsonpath>$.Reservation.Instances[0].InstanceType</jsonpath>
+                    </setHeader>
+                    <setHeader headerName="service_id" id="_setHeader6">
+                        <jsonpath>$.Reservation.Instances[0].InstanceId</jsonpath>
+                    </setHeader>
+                    <to id="_toSQLSelect" uri="sql:{{sql.addRequest}}?dataSource=brokerDS"/>
+                    <setHeader headerName="content-type" id="_setHeader1">
+                        <simple>application/json</simple>
+                    </setHeader>
+                    <setBody id="_aws_request">
+                        <simple>${headers.AWS_RESPONSE}</simple>
+                    </setBody>
+                </when>
+                <otherwise id="_otherwise1">
+                    <setHeader headerName="CamelHttpMethod" id="_setHeaderSQS1">
+                        <constant>POST</constant>
+                    </setHeader>
+                    <setHeader headerName="content-type" id="_setHeaderSQS2">
+                        <simple>application/json</simple>
+                    </setHeader>
+                    <setHeader headerName="Authorization" id="_setHeaderSQS3">
+                        <simple>Bearer ${headers.token}</simple>
+                    </setHeader>
+                    <setBody id="setBodySQS2">
+                        <constant>
+		                	{"kind":"ServiceInstance",
+		                	 "apiVersion":"servicecatalog.k8s.io/v1beta1",
+		                	 "metadata":{"namespace":"demo","generateName":"dh-sqs-"},
+		                	 "spec":{"clusterServiceClassExternalName":"dh-sqs","clusterServicePlanExternalName":"fifo","parametersFrom":[{"secretKeyRef":{"name":"dh-sqs-parameterscret","key":"parameters"}}]}}
+		                </constant>
+                    </setBody>
+                    <to id="serviceInstanceEndpointSQS2" uri="insecureHttps4://master.dxbsdg-bfa6.openshiftworkshop.com/apis/servicecatalog.k8s.io/v1beta1/namespaces/demo/serviceinstances?bridgeEndpoint=true"/>
+                    <convertBodyTo id="_convertBodyToSQS" type="java.lang.String"/>
+                    <setHeader headerName="order_response" id="_setHeaderSQS3">
+                        <simple>${body}</simple>
+                    </setHeader>
+                    <setHeader headerName="order_status" id="_setHeaderSQS4">
+                        <constant>Provisioned</constant>
+                    </setHeader>
+                    <setHeader headerName="service_provider" id="_setHeaderSQS5">
+                        <constant>aws-broker</constant>
+                    </setHeader>
+                    <setHeader headerName="service_type" id="_setHeaderSQS6">
+                        <jsonpath>$.spec.clusterServiceClassExternalName</jsonpath>
+                    </setHeader>
+                    <setHeader headerName="service_id" id="_setHeaderSQS7">
+                        <jsonpath>$.metadata.name</jsonpath>
+                    </setHeader>
+                    <to id="_toSQLSelectSQS" uri="sql:{{sql.addRequest}}?dataSource=brokerDS"/>
+                    <unmarshal id="_unmarshalSQS" ref="transform-json"/>
+                    <setHeader headerName="content-type" id="_setHeaderSQS4">
+                        <simple>application/json</simple>
+                    </setHeader>
+                </otherwise>
+            </choice>
+            <wireTap id="_provision_send_email_to" uri="direct:sendSmtpMail"/>
+        </route>
+        <route id="_services_route">
+            <from id="_from_auth" uri="direct:_services"/>
+            <setHeader headerName="CamelHttpMethod" id="httpMethodAuth">
+                <constant>GET</constant>
+            </setHeader>
+            <setHeader headerName="content-type" id="_setHeader11">
+                <simple>application/json</simple>
+            </setHeader>
+            <setHeader headerName="Authorization" id="_setHeader31">
+                <simple>Bearer ${headers.token}</simple>
+            </setHeader>
+            <to id="serviceCatalogEndpoint" uri="insecureHttps4://master.dxbsdg-bfa6.openshiftworkshop.com/apis/servicecatalog.k8s.io/v1beta1/clusterserviceclasses?bridgeEndpoint=true"/>
+            <unmarshal id="_unmarshal1" ref="transform-json"/>
+            <pollEnrich id="_pollEnrich1" strategyRef="aggregationStrategy">
+                <constant>sql:{{sql.selectService}}?dataSource=brokerDS</constant>
+            </pollEnrich>
+            <setHeader headerName="content-type" id="_setHeader112">
+                <simple>application/json</simple>
+            </setHeader>
+        </route>
+        <route id="_order_status">
+            <from id="_from_os" uri="direct:_order_status"/>
+            <to id="_toSQLSelect_os" uri="sql:{{sql.selectRequest}}?dataSource=brokerDS"/>
+            <setBody id="_setBody_os">
+                <simple>${body[0]}</simple>
+            </setBody>
+            <marshal id="_marshal_os" ref="transform-json"/>
+        </route>
+        <route id="sendMail" xmlns="http://camel.apache.org/schema/spring">
+            <from id="_fromSendMail" uri="direct:sendSmtpMail"/>
+            <to id="_toMailServer" uri="smtps:smtp.yandex.com:465?username=rhmw.demo&amp;password=redhat1!&amp;from=rhmw.demo@yandex.com&amp;to=ali.haidar@gmail.com&amp;subject=Demo Notification!Amazon EC2 Instance&amp;debugMode=true"/>
         </route>
     </camelContext>
 </beans>
